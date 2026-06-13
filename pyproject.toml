@@ -1,6 +1,6 @@
 [project]
 name = "vulguard"
-version = "1.0.0"
+version = "1.0.1"
 description = "A lightweight security tool that automatically scans source code for vulnerabilities, highlights risky patterns, and guides developers toward safer implementations to strengthen their applications' overall security posture."
 authors = [
     {name = "Ron Webb", email = "ron@ronella.xyz"}

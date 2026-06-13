@@ -204,16 +204,17 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     db_path, session_id = _setup_db_session(db_dir)
     _logger.info("Collected %d file(s) for inspection.", len(files))
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    await _inspect_all(files, system_prompt, config, db_path, session_id)
+    try:
+        await _inspect_all(files, system_prompt, config, db_path, session_id)
 
-    results = get_results_by_session(db_path, session_id)
-    report = build_report(results, __version__)
-    vuln_count = sum(1 for r in results if r.get("severity") != "NONE")
+        results = get_results_by_session(db_path, session_id)
+        report = build_report(results, __version__)
+        vuln_count = sum(1 for r in results if r.get("severity") != "NONE")
 
-    _write_reports(report, output_dir, report_base, fmt)
-
-    delete_results_by_session(db_path, session_id)
-    _logger.debug("Session %s removed from database.", session_id)
+        _write_reports(report, output_dir, report_base, fmt)
+    finally:
+        delete_results_by_session(db_path, session_id)
+        _logger.debug("Session %s removed from database.", session_id)
 
     _logger.info("Inspection complete. %d vulnerability(ies) found.", vuln_count)
     _console.print(
@@ -273,9 +274,14 @@ def inspect_command(  # pylint: disable=too-many-arguments,too-many-positional-a
     """
     extensions: list[str] = [e.strip().lower() for e in ext.split(",")] if ext else []
     effective_output_dir = output_dir or str(Path.cwd() / "reports")
-    asyncio.run(
-        _run_inspection(paths, extensions, effective_output_dir, report, fmt, db_dir)
-    )
+    try:
+        asyncio.run(
+            _run_inspection(
+                paths, extensions, effective_output_dir, report, fmt, db_dir
+            )
+        )
+    except KeyboardInterrupt:
+        _console.print("\n[yellow]Inspection aborted.[/yellow]")
 
 
 @click.group()

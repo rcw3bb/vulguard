@@ -8,6 +8,7 @@ and parses the model response into a structured vulnerability dict.
 :since: 1.0.0
 """
 
+import asyncio
 import json
 from importlib import resources
 from pathlib import Path
@@ -18,6 +19,8 @@ from copilot.session_events import AssistantMessageData  # pylint: disable=impor
 
 from .config import Config
 from .retry import retry_async
+
+_inspect_lock = asyncio.Lock()
 
 
 def load_system_prompt() -> str:
@@ -75,27 +78,50 @@ async def inspect_file(
     :param config: The vulguard configuration instance.
     :return: Dict with ``file``, ``severity``, and ``details`` keys.
     """
-    async with CopilotClient() as client:
-        async with await client.create_session(
-            on_permission_request=PermissionHandler.approve_all,
-            model=config.get_model(),
-            system_message={"mode": "replace", "content": system_prompt},
-        ) as session:
-            response = await retry_async(
-                session.send_and_wait,
-                f"Check for security vulnerability the {file_path}",
-                attachments=[
-                    {
-                        "type": "file",
-                        "path": file_path,
-                        "displayName": Path(file_path).name,
-                    }
-                ],
-                timeout=float(config.get_timeout()),
-                max_attempts=config.get_max_attempts(),
-                base_delay=config.get_base_delay(),
-                max_delay=config.get_max_delay(),
-            )
+    async with _inspect_lock:
+        return await _run_inspection(file_path, system_prompt, config)
+
+
+async def _run_inspection(
+    file_path: str,
+    system_prompt: str,
+    config: Config,
+) -> dict[str, str]:
+    """Performs the actual Copilot inspection for a single file.
+
+    Separated from :func:`inspect_file` so that the lock acquired there
+    wraps only the inner coroutine, keeping the public API clean.
+
+    :param file_path: Absolute path to the file to inspect.
+    :param system_prompt: The security inspection system prompt text.
+    :param config: The vulguard configuration instance.
+    :return: Dict with ``file``, ``severity``, and ``details`` keys.
+    """
+    response = None
+    try:
+        async with CopilotClient() as client:
+            async with await client.create_session(
+                on_permission_request=PermissionHandler.approve_all,
+                model=config.get_model(),
+                system_message={"mode": "replace", "content": system_prompt},
+            ) as session:
+                response = await retry_async(
+                    session.send_and_wait,
+                    f"Check for security vulnerability the {file_path}",
+                    attachments=[
+                        {
+                            "type": "file",
+                            "path": file_path,
+                            "displayName": Path(file_path).name,
+                        }
+                    ],
+                    timeout=float(config.get_timeout()),
+                    max_attempts=config.get_max_attempts(),
+                    base_delay=config.get_base_delay(),
+                    max_delay=config.get_max_delay(),
+                )
+    except KeyboardInterrupt:
+        raise asyncio.CancelledError() from None
 
     if response is None:
         return {"file": file_path, "severity": "NONE", "details": "The code is safe."}

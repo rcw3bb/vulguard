@@ -1,7 +1,7 @@
-# vulguard 1.0.0
+# vulguard 1.0.1
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](CHANGELOG.md)
 
 > A lightweight CLI security tool that automatically scans source code for vulnerabilities, highlights risky patterns, and guides developers toward safer implementations to strengthen their applications' overall security posture.
 
