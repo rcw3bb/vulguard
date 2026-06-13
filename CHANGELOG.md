@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.1 - 2026-06-14
+
+### Added
+
+- GitHub Actions **Publish** workflow (`publish.yml`) that runs tests and publishes to PyPI on every push to `main`.
+- `_inspect_lock` (`asyncio.Lock`) in `inspector.py` to serialize concurrent Copilot sessions and avoid race conditions.
+- `_run_inspection` private helper in `inspector.py` that encapsulates the Copilot client/session lifecycle, keeping the public `inspect_file` API clean.
+
+### Changed
+
+- `_run_inspection` in `cli.py` now wraps inspection and report writing in a `try/finally` block so session data is always cleaned up from the database even when an error occurs.
+- `inspect_command` in `cli.py` catches `KeyboardInterrupt` and prints a user-friendly abort message instead of raising an unhandled exception.
+- `inspect_file` in `inspector.py` delegates to the new `_run_inspection` helper under the serialization lock.
+- `KeyboardInterrupt` inside the Copilot session is converted to `asyncio.CancelledError` for clean async cancellation.
+
 ## 1.0.0 - 2026-06-14
 
 ### Added
