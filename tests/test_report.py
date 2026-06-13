@@ -14,6 +14,7 @@ import pytest
 from vulguard.report import (
     _HTML_TEMPLATE,
     _render_html_vuln_row,
+    _render_paths_html,
     build_report,
     write_html,
     write_json,
@@ -70,6 +71,16 @@ class TestBuildReport:
         report = build_report(results, "1.0.0")
         assert len(report["vulnerabilities"]) == 1
         assert report["vulnerabilities"][0]["severity"] == "ERROR"
+
+    def test_paths_included_in_report(self) -> None:
+        """build_report() includes the scanned paths in the report dict."""
+        report = build_report([], "1.0.0", ["/src", "/lib"])
+        assert report["paths"] == ["/src", "/lib"]
+
+    def test_paths_defaults_to_empty_list(self) -> None:
+        """build_report() defaults paths to an empty list when not provided."""
+        report = build_report([], "1.0.0")
+        assert report["paths"] == []
 
 
 class TestWriteJson:
@@ -222,3 +233,73 @@ def test_html_template_has_severity_css_classes(
 ) -> None:
     """_HTML_TEMPLATE contains the expected CSS class for each severity level."""
     assert expected_css in _HTML_TEMPLATE
+
+
+class TestRenderPathsHtml:
+    """Tests for the private _render_paths_html helper.
+
+    :author: Ron Webb
+    :since: 1.0.0
+    """
+
+    def test_empty_paths_returns_empty_string(self) -> None:
+        """_render_paths_html() returns an empty string for an empty list."""
+        assert _render_paths_html([]) == ""
+
+    def test_single_path_rendered(self) -> None:
+        """_render_paths_html() renders a single path wrapped in a code tag."""
+        result = _render_paths_html(["/src"])
+        assert "<code>/src</code>" in result
+        assert "Scanned:" in result
+
+    def test_multiple_paths_separated_by_bullet(self) -> None:
+        """_render_paths_html() separates multiple paths with a bullet entity."""
+        result = _render_paths_html(["/src", "/lib"])
+        assert "&bull;" in result
+        assert "<code>/src</code>" in result
+        assert "<code>/lib</code>" in result
+
+    def test_path_html_escaped(self) -> None:
+        """_render_paths_html() HTML-escapes special characters in paths."""
+        result = _render_paths_html(["<script>path</script>"])
+        assert "<script>" not in result
+        assert "&lt;script&gt;" in result
+
+
+class TestWriteHtmlWithPaths:
+    """Tests that write_html() renders scanned paths into the HTML output.
+
+    :author: Ron Webb
+    :since: 1.0.0
+    """
+
+    def test_paths_rendered_in_html(self) -> None:
+        """write_html() shows scanned paths in the output when paths are provided."""
+        report: dict[str, object] = {
+            "application": "vulguard",
+            "version": "1.0.0",
+            "paths": ["/src", "/lib"],
+            "vulnerabilities": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = os.path.join(tmp, "report.html")
+            write_html(report, out_path)
+            with open(out_path, encoding="utf-8") as rdr:
+                content = rdr.read()
+        assert "Scanned:" in content
+        assert "/src" in content
+
+    def test_no_paths_omits_paths_section(self) -> None:
+        """write_html() omits the paths section when the paths list is empty."""
+        report: dict[str, object] = {
+            "application": "vulguard",
+            "version": "1.0.0",
+            "paths": [],
+            "vulnerabilities": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            out_path = os.path.join(tmp, "report.html")
+            write_html(report, out_path)
+            with open(out_path, encoding="utf-8") as rdr:
+                content = rdr.read()
+        assert "Scanned:" not in content

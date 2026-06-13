@@ -9,7 +9,7 @@ safer implementations to strengthen their applications' overall security posture
 
 from env_dir_bootstrap import EnvDirBootstrap
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 _bootstrapper = EnvDirBootstrap(
     env_var="VULGUARD_CONFIG_DIR",

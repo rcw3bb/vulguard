@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.2 - 2026-06-14
+
+### Added
+
+- `_render_paths_html()` private helper in `report.py` that generates an HTML snippet listing the scanned paths in the report header.
+
+### Changed
+
+- `_inspect_and_persist()` in `cli.py` accepts an optional `status` parameter and updates the Rich spinner message with the currently inspecting file path.
+- `_inspect_all()` in `cli.py` passes the live Rich `Status` object to `_inspect_and_persist()` for real-time per-file progress updates.
+- `_run_inspection()` in `cli.py` passes the scanned `paths` list to `build_report()` and removes the `try/finally` block — session cleanup now runs unconditionally after reports are written.
+- `build_report()` in `report.py` accepts an optional `paths` argument and includes it in the report dict.
+- HTML report template updated to render scanned paths in the header via `%%PATHS%%` placeholder.
+- Logger configuration in `logging.ini` renamed from `copilotClient` (qualname `copilot.client`) to `copilot` (qualname `copilot`) to align with the Copilot SDK logger hierarchy.
+
 ## 1.0.1 - 2026-06-14
 
 ### Added

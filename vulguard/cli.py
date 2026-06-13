@@ -74,6 +74,7 @@ async def _inspect_and_persist(  # pylint: disable=too-many-arguments,too-many-p
     config: Config,
     db_path: str,
     session_id: str,
+    status: object | None = None,
 ) -> None:
     """Inspects a single file and persists the result to the database.
 
@@ -82,8 +83,11 @@ async def _inspect_and_persist(  # pylint: disable=too-many-arguments,too-many-p
     :param config: The vulguard configuration instance.
     :param db_path: Absolute path to the vulguard SQLite database file.
     :param session_id: UUID string identifying the current inspection run.
+    :param status: Optional Rich Status object used to update the spinner message.
     """
     _logger.debug("Inspecting file: %s", file_path)
+    if status is not None:
+        status.update(f"Inspecting: {file_path}")
     severity = "NONE"
     details = "The code is safe."
     try:
@@ -121,9 +125,9 @@ async def _inspect_all(  # pylint: disable=too-many-arguments,too-many-positiona
     :param db_path: Absolute path to the vulguard SQLite database file.
     :param session_id: UUID string identifying the current inspection run.
     """
-    with _console.status(f"Inspecting {len(files)} file(s)…", spinner="dots"):
+    with _console.status("Inspecting…", spinner="dots") as status:
         tasks = [
-            _inspect_and_persist(fp, system_prompt, config, db_path, session_id)
+            _inspect_and_persist(fp, system_prompt, config, db_path, session_id, status)
             for fp in files
         ]
         await asyncio.gather(*tasks)
@@ -204,17 +208,16 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     db_path, session_id = _setup_db_session(db_dir)
     _logger.info("Collected %d file(s) for inspection.", len(files))
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    try:
-        await _inspect_all(files, system_prompt, config, db_path, session_id)
+    await _inspect_all(files, system_prompt, config, db_path, session_id)
 
-        results = get_results_by_session(db_path, session_id)
-        report = build_report(results, __version__)
-        vuln_count = sum(1 for r in results if r.get("severity") != "NONE")
+    results = get_results_by_session(db_path, session_id)
+    report = build_report(results, __version__, list(paths))
+    vuln_count = sum(1 for r in results if r.get("severity") != "NONE")
 
-        _write_reports(report, output_dir, report_base, fmt)
-    finally:
-        delete_results_by_session(db_path, session_id)
-        _logger.debug("Session %s removed from database.", session_id)
+    _write_reports(report, output_dir, report_base, fmt)
+
+    delete_results_by_session(db_path, session_id)
+    _logger.debug("Session %s removed from database.", session_id)
 
     _logger.info("Inspection complete. %d vulnerability(ies) found.", vuln_count)
     _console.print(
