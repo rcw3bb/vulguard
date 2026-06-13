@@ -128,6 +128,8 @@ class TestRunInspection:
                 report = json.load(rdr)
         assert report["application"] == "vulguard"
         assert len(report["vulnerabilities"]) == 1
+        assert "paths" in report
+        assert isinstance(report["paths"], list)
 
     def test_run_inspection_creates_html_report(self) -> None:
         """_run_inspection() creates both JSON and HTML reports when fmt='html'."""

@@ -40,6 +40,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
         .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.13); transform: translateY(-2px); }
         .card.active { outline: 2px solid #1a1a2e; }
         .c-red { color: #c0392b; } .c-orange { color: #e67e22; } .c-yellow { color: #d4ac0d; } .c-grey { color: #7f8c8d; }
+        .paths { font-size: 12px; opacity: 0.75; margin-top: 6px; font-family: monospace; }
+        .paths code { background: rgba(255,255,255,0.15); padding: 1px 6px; border-radius: 4px; }
         .vuln { background: #fff; border-radius: 10px; margin-bottom: 16px;
                 overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); display: flex; }
         .bar { width: 6px; flex-shrink: 0; }
@@ -64,6 +66,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="header">
         <h1>Vulguard Security Report</h1>
         <div class="sub">%%APPLICATION%% &bull; v%%VERSION%% &bull; %%TIMESTAMP%%</div>
+        %%PATHS%%
     </div>
     <div class="summary">
         <div class="card active" data-filter="ALL" onclick="filterCards(this)"><div class="num">%%TOTAL%%</div><div class="lbl">Vulnerabilities</div></div>
@@ -99,11 +102,16 @@ _HTML_ROW_TEMPLATE = (
 )
 
 
-def build_report(results: list[dict[str, str]], version: str) -> dict[str, object]:
+def build_report(
+    results: list[dict[str, str]],
+    version: str,
+    paths: list[str] | None = None,
+) -> dict[str, object]:
     """Builds the final report dict, filtering out ``NONE``-severity entries.
 
     :param results: List of per-file inspection result dicts.
     :param version: The application version string.
+    :param paths: Optional list of scanned paths provided to the CLI.
     :return: Structured report dict ready for JSON serialisation.
     """
     vulnerabilities: list[dict[str, str]] = [
@@ -113,8 +121,21 @@ def build_report(results: list[dict[str, str]], version: str) -> dict[str, objec
         "application": _APPLICATION_NAME,
         "version": version,
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "paths": paths if paths is not None else [],
         "vulnerabilities": vulnerabilities,
     }
+
+
+def _render_paths_html(paths: list[str]) -> str:
+    """Renders the scanned-paths line for the HTML report header.
+
+    :param paths: List of scanned paths supplied to the CLI.
+    :return: HTML string for the paths section, or empty string if no paths.
+    """
+    if not paths:
+        return ""
+    items = " &bull; ".join(f"<code>{html.escape(p)}</code>" for p in paths)
+    return f'<div class="paths">Scanned: {items}</div>'
 
 
 def _render_html_vuln_row(vuln: dict[str, str]) -> str:
@@ -148,10 +169,13 @@ def _render_html_report(report: dict[str, object], vulns: list[dict[str, str]]) 
         if vulns
         else '<p class="no-vulns">No vulnerabilities found. Your code looks safe!</p>'
     )
+    raw_paths = report.get("paths", [])
+    paths: list[str] = raw_paths if isinstance(raw_paths, list) else []
     substitutions = {
         "APPLICATION": html.escape(str(report.get("application", _APPLICATION_NAME))),
         "VERSION": html.escape(str(report.get("version", ""))),
         "TIMESTAMP": html.escape(str(report.get("timestamp", ""))),
+        "PATHS": _render_paths_html(paths),
         "TOTAL": str(len(vulns)),
         "CRITICAL": str(sum(1 for v in vulns if v.get("severity") == "CRITICAL")),
         "MAJOR": str(sum(1 for v in vulns if v.get("severity") == "MAJOR")),
