@@ -50,6 +50,17 @@ vulguard inspect src/ tests/ --ext py,js --format html --output-dir reports
 vulguard inspect src/ --report my-scan --db-dir /tmp/vg-db
 ```
 
+## Severity Levels
+
+Each inspected file is assigned one of four severity levels. Only files with a non-`NONE` severity are included in the report.
+
+| Level | Description |
+|---|---|
+| `CRITICAL` | Immediate exploitation risk — e.g., SQL injection, command injection, hardcoded secrets/passwords/tokens, authentication bypass, remote code execution. |
+| `MAJOR` | High-risk issues that can lead to data exposure or unauthorized access — e.g., logging entire request payloads or sensitive user data, logging full exception objects or stack traces, insecure deserialization, path traversal, cross-site scripting without output encoding, CSRF on state-changing endpoints. |
+| `MINOR` | Lower-risk issues that could become vulnerabilities under certain conditions — e.g., overly verbose error messages, weak cryptography (MD5/SHA1 for security purposes), missing input validation, use of deprecated security APIs, storing sensitive data in cookies without `Secure`/`HttpOnly` flags. |
+| `NONE` | No security vulnerabilities detected. Files with this severity are excluded from the report. |
+
 ## Configuration
 
 On first run, vulguard bootstraps a configuration directory and copies its default `config.ini` and `logging.ini` there. You can override the location with the `VULGUARD_CONFIG_DIR` environment variable:
