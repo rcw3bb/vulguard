@@ -1,6 +1,6 @@
 # Vulguard
 
-[![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](CHANGELOG.md) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 
 > A lightweight CLI security tool that automatically scans source code for vulnerabilities, highlights risky patterns, and guides developers toward safer implementations to strengthen their applications' overall security posture.
@@ -49,6 +49,15 @@ vulguard inspect src/ tests/ --ext py,js --format html --output-dir reports
 # Use a custom report name and database directory
 vulguard inspect src/ --report my-scan --db-dir /tmp/vg-db
 ```
+
+### Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Inspection completed — no vulnerabilities found. |
+| `1` | Inspection completed — one or more vulnerabilities detected. |
+
+This makes it straightforward to fail a CI pipeline step when security issues are present.
 
 ## Severity Levels
 
