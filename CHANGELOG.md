@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.3 - 2026-06-14
+
+### Added
+
+- `model` and `extensions` fields added to the report dict in `build_report()` in `report.py`.
+- `files_inspected` count field added to the report dict in `build_report()` in `report.py`.
+- HTML report header now shows the model name and a second subtitle line displaying the number of files inspected and the targeted extensions.
+
+### Changed
+
+- `_inspect_all()` in `cli.py` replaces the `rich.console.Status` spinner with a `rich.progress.Progress` bar (`BarColumn`, `MofNCompleteColumn`, `TaskProgressColumn`, `TextColumn`, `TimeElapsedColumn`) that advances after each file completes.
+- `_inspect_all()` in `cli.py` changed from concurrent `asyncio.gather()` to sequential `await` per file to enable accurate progress tracking.
+- `_inspect_and_persist()` in `cli.py` — removed the `status` parameter and spinner-update logic; pylint `too-many-arguments` suppression comment removed.
+- `_inspect_all()` in `cli.py` — pylint `too-many-arguments` suppression comment removed.
+- `_run_inspection()` in `cli.py` passes `config.get_model()` and `extensions` to `build_report()`.
+- `build_report()` in `report.py` accepts new optional `model` and `extensions` parameters.
+- `_render_html_report()` in `report.py` handles `%%MODEL%%`, `%%FILES_INSPECTED%%`, and `%%EXTENSIONS%%` substitutions; extensions render as a comma-separated list or `all` when empty.
+
 ## 1.0.2 - 2026-06-14
 
 ### Added
