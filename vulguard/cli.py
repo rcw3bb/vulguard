@@ -18,6 +18,14 @@ import click
 from logenrich import setup_logger
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.text import Text
 
 from . import __version__, CONF_DIR
@@ -68,13 +76,12 @@ def _collect_files(paths: tuple[str, ...], extensions: list[str]) -> list[str]:
     return sorted(collected)
 
 
-async def _inspect_and_persist(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+async def _inspect_and_persist(
     file_path: str,
     system_prompt: str,
     config: Config,
     db_path: str,
     session_id: str,
-    status: object | None = None,
 ) -> None:
     """Inspects a single file and persists the result to the database.
 
@@ -83,11 +90,8 @@ async def _inspect_and_persist(  # pylint: disable=too-many-arguments,too-many-p
     :param config: The vulguard configuration instance.
     :param db_path: Absolute path to the vulguard SQLite database file.
     :param session_id: UUID string identifying the current inspection run.
-    :param status: Optional Rich Status object used to update the spinner message.
     """
     _logger.debug("Inspecting file: %s", file_path)
-    if status is not None:
-        status.update(f"Inspecting: {file_path}")
     severity = "NONE"
     details = "The code is safe."
     try:
@@ -110,7 +114,7 @@ async def _inspect_and_persist(  # pylint: disable=too-many-arguments,too-many-p
     )
 
 
-async def _inspect_all(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+async def _inspect_all(
     files: list[str],
     system_prompt: str,
     config: Config,
@@ -125,12 +129,25 @@ async def _inspect_all(  # pylint: disable=too-many-arguments,too-many-positiona
     :param db_path: Absolute path to the vulguard SQLite database file.
     :param session_id: UUID string identifying the current inspection run.
     """
-    with _console.status("Inspecting…", spinner="dots") as status:
-        tasks = [
-            _inspect_and_persist(fp, system_prompt, config, db_path, session_id, status)
-            for fp in files
-        ]
-        await asyncio.gather(*tasks)
+    total = len(files)
+
+    with Progress(
+        TextColumn("{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=_console,
+    ) as progress:
+        task = progress.add_task("Inspecting…", total=total)
+
+        async def _tracked(file_path: str) -> None:
+            await _inspect_and_persist(
+                file_path, system_prompt, config, db_path, session_id
+            )
+            progress.update(task, advance=1)
+
+        await asyncio.gather(*(_tracked(file_path) for file_path in files))
 
 
 def _setup_db_session(db_dir: str | None) -> tuple[str, str]:
@@ -211,7 +228,9 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     await _inspect_all(files, system_prompt, config, db_path, session_id)
 
     results = get_results_by_session(db_path, session_id)
-    report = build_report(results, __version__, list(paths))
+    report = build_report(
+        results, __version__, list(paths), config.get_model(), extensions
+    )
     vuln_count = sum(1 for r in results if r.get("severity") != "NONE")
 
     _write_reports(report, output_dir, report_base, fmt)

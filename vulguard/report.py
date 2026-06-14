@@ -65,7 +65,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
     <div class="header">
         <h1>Vulguard Security Report</h1>
-        <div class="sub">%%APPLICATION%% &bull; v%%VERSION%% &bull; %%TIMESTAMP%%</div>
+        <div class="sub">%%APPLICATION%% &bull; v%%VERSION%% &bull; %%MODEL%% &bull; %%TIMESTAMP%%</div>
+        <div class="sub">%%FILES_INSPECTED%% file(s) inspected &bull; Extensions: %%EXTENSIONS%%</div>
         %%PATHS%%
     </div>
     <div class="summary">
@@ -106,12 +107,16 @@ def build_report(
     results: list[dict[str, str]],
     version: str,
     paths: list[str] | None = None,
+    model: str | None = None,
+    extensions: list[str] | None = None,
 ) -> dict[str, object]:
     """Builds the final report dict, filtering out ``NONE``-severity entries.
 
     :param results: List of per-file inspection result dicts.
     :param version: The application version string.
     :param paths: Optional list of scanned paths provided to the CLI.
+    :param model: Optional model identifier used during inspection.
+    :param extensions: Optional list of file extensions targeted during inspection.
     :return: Structured report dict ready for JSON serialisation.
     """
     vulnerabilities: list[dict[str, str]] = [
@@ -120,7 +125,10 @@ def build_report(
     return {
         "application": _APPLICATION_NAME,
         "version": version,
+        "model": model or "",
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "files_inspected": len(results),
+        "extensions": extensions if extensions is not None else [],
         "paths": paths if paths is not None else [],
         "vulnerabilities": vulnerabilities,
     }
@@ -171,10 +179,16 @@ def _render_html_report(report: dict[str, object], vulns: list[dict[str, str]]) 
     )
     raw_paths = report.get("paths", [])
     paths: list[str] = raw_paths if isinstance(raw_paths, list) else []
+    raw_extensions = report.get("extensions", [])
+    extensions: list[str] = raw_extensions if isinstance(raw_extensions, list) else []
+    extensions_label = ", ".join(extensions) if extensions else "all"
     substitutions = {
         "APPLICATION": html.escape(str(report.get("application", _APPLICATION_NAME))),
         "VERSION": html.escape(str(report.get("version", ""))),
+        "MODEL": html.escape(str(report.get("model", ""))),
         "TIMESTAMP": html.escape(str(report.get("timestamp", ""))),
+        "FILES_INSPECTED": str(report.get("files_inspected", 0)),
+        "EXTENSIONS": html.escape(extensions_label),
         "PATHS": _render_paths_html(paths),
         "TOTAL": str(len(vulns)),
         "CRITICAL": str(sum(1 for v in vulns if v.get("severity") == "CRITICAL")),
