@@ -11,6 +11,7 @@ persisted to SQLite via ``vulguard.db``), and delegates report generation to
 """
 
 import asyncio
+import sys
 import uuid
 from pathlib import Path
 
@@ -196,7 +197,7 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     report_base: str,
     fmt: str,
     db_dir: str | None = None,
-) -> None:
+) -> int:
     """Orchestrates file collection, Copilot inspection, and report writing.
 
     Inspection results are persisted to SQLite (``vulguard.db``) during the
@@ -209,6 +210,7 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     :param fmt: Report format — ``'json'`` or ``'html'``.
     :param db_dir: Optional directory that overrides the default database
                    location (``~/.vulguard``).
+    :return: Number of vulnerabilities found.
     """
     _logger.info("Starting vulguard inspection — paths: %s, fmt: %s", paths, fmt)
     system_prompt = load_system_prompt()
@@ -220,7 +222,7 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
         _console.print(
             "[yellow]No files found matching the specified criteria.[/yellow]"
         )
-        return
+        return 0
 
     db_path, session_id = _setup_db_session(db_dir)
     _logger.info("Collected %d file(s) for inspection.", len(files))
@@ -242,6 +244,7 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     _console.print(
         f"\n[bold]Inspection complete.[/bold] {vuln_count} vulnerability(ies) found."
     )
+    return vuln_count
 
 
 @click.command("inspect")
@@ -297,11 +300,13 @@ def inspect_command(  # pylint: disable=too-many-arguments,too-many-positional-a
     extensions: list[str] = [e.strip().lower() for e in ext.split(",")] if ext else []
     effective_output_dir = output_dir or str(Path.cwd() / "reports")
     try:
-        asyncio.run(
+        vuln_count = asyncio.run(
             _run_inspection(
                 paths, extensions, effective_output_dir, report, fmt, db_dir
             )
         )
+        if vuln_count > 0:
+            sys.exit(1)
     except KeyboardInterrupt:
         _console.print("\n[yellow]Inspection aborted.[/yellow]")
 

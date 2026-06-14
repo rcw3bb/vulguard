@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 - 2026-06-14
+
+### Added
+
+- `inspect_command` in `cli.py` exits with code `1` when one or more vulnerabilities are found, enabling CI pipelines to detect and fail on security issues.
+
 ## 1.0.3 - 2026-06-14
 
 ### Added

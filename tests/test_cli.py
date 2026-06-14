@@ -202,13 +202,22 @@ class TestCliInspectCommand:
 
     def test_cli_runs_with_valid_path(self) -> None:
         """inspect_command invokes _run_inspection for a valid directory."""
-        mock_async = AsyncMock(return_value=None)
+        mock_async = AsyncMock(return_value=0)
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as tmp:
             with patch("vulguard.cli._run_inspection", mock_async):
                 result = runner.invoke(inspect_command, [tmp])
         assert result.exit_code == 0
         mock_async.assert_awaited_once()
+
+    def test_cli_exits_nonzero_when_vulnerabilities_found(self) -> None:
+        """inspect_command exits with code 1 when vulnerabilities are found."""
+        mock_async = AsyncMock(return_value=2)
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("vulguard.cli._run_inspection", mock_async):
+                result = runner.invoke(inspect_command, [tmp])
+        assert result.exit_code == 1
 
     def test_cli_ext_parsed_correctly(self) -> None:
         """inspect_command passes parsed extension list to _run_inspection."""
@@ -217,6 +226,7 @@ class TestCliInspectCommand:
         async def fake_run(paths, extensions, output_dir, report_base, fmt, db_dir):
             """Captures arguments for assertion."""
             captured.append(extensions)
+            return 0
 
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as tmp:
@@ -231,6 +241,7 @@ class TestCliInspectCommand:
         async def fake_run(paths, extensions, output_dir, report_base, fmt, db_dir):
             """Captures fmt argument for assertion."""
             captured.append(fmt)
+            return 0
 
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as tmp:
@@ -245,6 +256,7 @@ class TestCliInspectCommand:
         async def fake_run(paths, extensions, output_dir, report_base, fmt, db_dir):
             """Captures report_base for assertion."""
             captured.append(report_base)
+            return 0
 
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as tmp:
