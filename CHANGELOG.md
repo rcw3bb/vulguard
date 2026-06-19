@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.1 - 2026-06-20
+
+### Added
+
+- `braincraft` package dependency (`>=1.0.0,<2.0.0`) providing `retry_rand_exp` for randomized exponential back-off retry logic.
+
+### Changed
+
+- `_collect_files()` in `cli.py` replaced `path.resolve()` with `path.absolute()` for consistent path resolution without following symlinks.
+- `_run_inspection()` in `inspector.py` now uses `braincraft.retry_rand_exp` instead of the internal `retry_async` for transient-failure retry with exponential back-off.
+
+### Removed
+
+- `vulguard/retry.py` — internal retry module superseded by the `braincraft` package.
+- `tests/test_retry.py` — unit tests for the removed `retry` module.
+
 ## 1.1.0 - 2026-06-14
 
 ### Added

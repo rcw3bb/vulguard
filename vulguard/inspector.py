@@ -13,12 +13,12 @@ import json
 from importlib import resources
 from pathlib import Path
 
+from braincraft import retry_rand_exp
 from copilot import CopilotClient  # pylint: disable=import-error
 from copilot.session import PermissionHandler  # pylint: disable=import-error
 from copilot.session_events import AssistantMessageData  # pylint: disable=import-error
 
 from .config import Config
-from .retry import retry_async
 
 _inspect_lock = asyncio.Lock()
 
@@ -70,7 +70,7 @@ async def inspect_file(
 
     A new ``CopilotClient`` and session are created for each file to ensure
     full context isolation between inspections.  The ``send_and_wait`` call is
-    wrapped with :func:`.retry.retry_async` to transparently retry transient
+    wrapped with ``braincraft.retry_rand_exp`` to transparently retry transient
     failures using exponential back-off with full jitter.
 
     :param file_path: Absolute path to the file to inspect.
@@ -105,7 +105,7 @@ async def _run_inspection(
                 model=config.get_model(),
                 system_message={"mode": "replace", "content": system_prompt},
             ) as session:
-                response = await retry_async(
+                response = await retry_rand_exp(
                     session.send_and_wait,
                     f"Check for security vulnerability the {file_path}",
                     attachments=[
