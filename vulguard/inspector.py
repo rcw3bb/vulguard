@@ -104,6 +104,7 @@ async def _run_inspection(
                 on_permission_request=PermissionHandler.approve_all,
                 model=config.get_model(),
                 system_message={"mode": "replace", "content": system_prompt},
+                working_directory=str(Path(file_path).parent),
             ) as session:
                 response = await retry_rand_exp(
                     session.send_and_wait,
