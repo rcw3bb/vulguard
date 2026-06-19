@@ -15,7 +15,6 @@ Run `poetry install` to set up. Format and lint: `poetry run black vulguard; poe
 - vulguard/inspector.py — GitHub Copilot SDK integration only; `_load_system_prompt`, `_parse_sdk_response`, `_inspect_file`
 - vulguard/db.py — SQLite persistence layer; `get_db_path`, `init_db`, `insert_result`, `get_results_by_session`, `delete_results_by_session`
 - vulguard/report.py — JSON and HTML report generation; `build_report`, `write_json`, `write_html`
-- vulguard/retry.py — async retry with exponential back-off and full jitter; `_compute_delay`, `retry_async`
 - vulguard/prompts/ — bundled prompt resources
 - vulguard/prompts/system-prompt.md — security inspection system prompt with JSON response schema
 - tests/ — test suite mirroring the vulguard/ package structure
@@ -31,7 +30,6 @@ Run `poetry install` to set up. Format and lint: `poetry run black vulguard; poe
 - tests/test_inspector.py — unit tests for vulguard.inspector (SDK layer only)
 - tests/test_db.py — unit tests for vulguard.db
 - tests/test_report.py — unit tests for vulguard.report
-- tests/test_retry.py — unit tests for vulguard.retry
 - .pylintrc — Pylint configuration (must score 10/10)
 - pyproject.toml — PEP 621 project metadata and Poetry build config
 - CHANGELOG.md — Keep a Changelog format; update for every release

@@ -69,11 +69,11 @@ def _collect_files(paths: tuple[str, ...], extensions: list[str]) -> list[str]:
         path = Path(raw_path)
         if path.is_file():
             if _should_include(path, extensions):
-                collected.add(str(path.resolve()))
+                collected.add(str(path.absolute()))
         elif path.is_dir():
             for file_path in path.rglob("*"):
                 if file_path.is_file() and _should_include(file_path, extensions):
-                    collected.add(str(file_path.resolve()))
+                    collected.add(str(file_path.absolute()))
     return sorted(collected)
 
 

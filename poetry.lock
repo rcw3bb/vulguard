@@ -76,6 +76,21 @@ jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
 uvloop = ["uvloop (>=0.15.2) ; sys_platform != \"win32\"", "winloop (>=0.5.0) ; sys_platform == \"win32\""]
 
 [[package]]
+name = "braincraft"
+version = "1.0.0"
+description = "A workshop of small, sharp utilities - carefully shaped helpers you reuse across projects to keep everyday coding tasks fast, tidy, and consistent."
+optional = false
+python-versions = ">=3.14"
+groups = ["main"]
+files = [
+    {file = "braincraft-1.0.0-py3-none-any.whl", hash = "sha256:57bc203691b105d1f76b09f3064f8b76f28cb0f64f675607d32ede6209fa4bc2"},
+    {file = "braincraft-1.0.0.tar.gz", hash = "sha256:0ebdb93f22f5849ed44fa4dd787e5fe9c03d442285d2943cedcb30c79d4390ca"},
+]
+
+[package.dependencies]
+logenrich = ">=1.0.1,<2.0.0"
+
+[[package]]
 name = "click"
 version = "8.4.1"
 description = "Composable command line interface toolkit"
@@ -832,4 +847,4 @@ typing-extensions = ">=4.12.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.14"
-content-hash = "072822d4ba7bb758db2bca45d315272bae9cee1eea2dea207b837aa9b636c68b"
+content-hash = "48b69b13d4c083139a8938456bb673dccf980722f47ade6e6787f6b3d4660065"
