@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2 - 2026-06-20
+
+### Fixed
+
+- `_run_inspection()` in `inspector.py` now passes `working_directory` (set to the inspected file's parent directory) to `create_session`, preventing `JsonRpcError -32603` when the process working directory does not exist or is inaccessible.
+
 ## 1.1.1 - 2026-06-20
 
 ### Added
