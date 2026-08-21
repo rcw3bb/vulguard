@@ -337,7 +337,12 @@ def inspect_command(  # pylint: disable=too-many-arguments,too-many-positional-a
     try:
         vuln_count = asyncio.run(
             _run_inspection(
-                paths, extensions, effective_output_dir, report, fmt, db_dir,
+                paths,
+                extensions,
+                effective_output_dir,
+                report,
+                fmt,
+                db_dir,
                 severities_set,
             )
         )
