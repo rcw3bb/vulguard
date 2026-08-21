@@ -11,7 +11,7 @@ Run `poetry install` to set up. Format and lint: `poetry run black vulguard; poe
 - vulguard/logging.ini — logging configuration (bundled as a package resource)
 - vulguard/config.ini — default runtime configuration (model name and timeout)
 - vulguard/config.py — `Config` class; reads config.ini from CONF_DIR with typed accessors and fallback defaults
-- vulguard/cli.py — `main` Click group and `inspect_command`; file collection, orchestration, delegates to `copilot_inspector` and `report`; exposed as the `vulguard` Poetry script
+- vulguard/cli.py — `main` Click group and `inspect_command`; file collection, orchestration, delegates to `copilot_inspector` and `report`; `_VALID_SEVERITIES` constant and `_parse_severities` helper; exposed as the `vulguard` Poetry script
 - vulguard/inspector.py — GitHub Copilot SDK integration only; `_load_system_prompt`, `_parse_sdk_response`, `_inspect_file`
 - vulguard/db.py — SQLite persistence layer; `get_db_path`, `init_db`, `insert_result`, `get_results_by_session`, `delete_results_by_session`
 - vulguard/report.py — JSON and HTML report generation; `build_report`, `write_json`, `write_html`

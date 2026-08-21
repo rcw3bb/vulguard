@@ -15,6 +15,7 @@ from click.testing import CliRunner
 
 from vulguard.cli import (
     _collect_files,
+    _parse_severities,
     _run_inspection,
     _should_include,
     inspect_command,
@@ -44,6 +45,43 @@ class TestShouldInclude:
     def test_case_insensitive_match(self) -> None:
         """_should_include() matches extensions case-insensitively."""
         assert _should_include("MODULE.PY", ["py"]) is True
+
+
+class TestParseSeverities:
+    """Tests for the _parse_severities helper.
+
+    :author: Ron Webb
+    :since: 1.2.0
+    """
+
+    def test_all_three_severities(self) -> None:
+        """_parse_severities() accepts all three valid values."""
+        result = _parse_severities("CRITICAL,MAJOR,MINOR")
+        assert result == frozenset({"CRITICAL", "MAJOR", "MINOR"})
+
+    def test_single_severity(self) -> None:
+        """_parse_severities() accepts a single valid severity."""
+        assert _parse_severities("CRITICAL") == frozenset({"CRITICAL"})
+
+    def test_case_insensitive(self) -> None:
+        """_parse_severities() normalises input to uppercase."""
+        assert _parse_severities("critical,MAJOR") == frozenset({"CRITICAL", "MAJOR"})
+
+    def test_whitespace_stripped(self) -> None:
+        """_parse_severities() strips surrounding whitespace from each token."""
+        assert _parse_severities(" CRITICAL , MINOR ") == frozenset(
+            {"CRITICAL", "MINOR"}
+        )
+
+    def test_invalid_severity_raises(self) -> None:
+        """_parse_severities() raises click.BadParameter for an unknown severity."""
+        import click  # pylint: disable=import-outside-toplevel
+
+        try:
+            _parse_severities("UNKNOWN")
+            assert False, "Expected click.BadParameter"
+        except click.BadParameter:
+            pass
 
 
 class TestCollectFiles:
@@ -179,6 +217,62 @@ class TestRunInspection:
             json_files = [f for f in os.listdir(tmp) if f.endswith(".json")]
         assert len(json_files) == 1
 
+    def test_run_inspection_severity_filter_excludes_unselected(self) -> None:
+        """_run_inspection() returns 0 when the result severity is not in severities."""
+        mock_result = {
+            "file": "/some/file.py",
+            "severity": "MAJOR",
+            "details": "Sensitive data logged.",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, "app.py")
+            with open(target, "w", encoding="utf-8") as out:
+                out.write("x = 1\n")
+            with patch(
+                "vulguard.cli.inspect_file",
+                new=AsyncMock(return_value=mock_result),
+            ):
+                count = asyncio.run(
+                    _run_inspection(
+                        (tmp,),
+                        [],
+                        tmp,
+                        "test-report",
+                        "json",
+                        tmp,
+                        frozenset({"CRITICAL"}),
+                    )
+                )
+        assert count == 0
+
+    def test_run_inspection_severity_filter_counts_selected(self) -> None:
+        """_run_inspection() counts only vulnerabilities whose severity is in severities."""
+        mock_result = {
+            "file": "/some/file.py",
+            "severity": "CRITICAL",
+            "details": "SQL injection.",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, "app.py")
+            with open(target, "w", encoding="utf-8") as out:
+                out.write("x = 1\n")
+            with patch(
+                "vulguard.cli.inspect_file",
+                new=AsyncMock(return_value=mock_result),
+            ):
+                count = asyncio.run(
+                    _run_inspection(
+                        (tmp,),
+                        [],
+                        tmp,
+                        "test-report",
+                        "json",
+                        tmp,
+                        frozenset({"CRITICAL", "MAJOR"}),
+                    )
+                )
+        assert count == 1
+
 
 class TestCliInspectCommand:
     """Tests for the inspect_command Click entry point.
@@ -223,7 +317,9 @@ class TestCliInspectCommand:
         """inspect_command passes parsed extension list to _run_inspection."""
         captured: list = []
 
-        async def fake_run(paths, extensions, output_dir, report_base, fmt, db_dir):
+        async def fake_run(
+            paths, extensions, output_dir, report_base, fmt, db_dir, severities
+        ):
             """Captures arguments for assertion."""
             captured.append(extensions)
             return 0
@@ -238,7 +334,9 @@ class TestCliInspectCommand:
         """inspect_command defaults to json format."""
         captured: list = []
 
-        async def fake_run(paths, extensions, output_dir, report_base, fmt, db_dir):
+        async def fake_run(
+            paths, extensions, output_dir, report_base, fmt, db_dir, severities
+        ):
             """Captures fmt argument for assertion."""
             captured.append(fmt)
             return 0
@@ -253,7 +351,9 @@ class TestCliInspectCommand:
         """inspect_command passes the custom report base name to _run_inspection."""
         captured: list = []
 
-        async def fake_run(paths, extensions, output_dir, report_base, fmt, db_dir):
+        async def fake_run(
+            paths, extensions, output_dir, report_base, fmt, db_dir, severities
+        ):
             """Captures report_base for assertion."""
             captured.append(report_base)
             return 0
@@ -263,6 +363,55 @@ class TestCliInspectCommand:
             with patch("vulguard.cli._run_inspection", fake_run):
                 runner.invoke(inspect_command, [tmp, "--report", "my-scan"])
         assert captured and captured[0] == "my-scan"
+
+    def test_cli_severities_filter_exit_zero_when_excluded(self) -> None:
+        """inspect_command exits 0 when the matched severity is not in --severities."""
+        mock_result = {
+            "file": "/some/file.py",
+            "severity": "MAJOR",
+            "details": "Sensitive data logged.",
+        }
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, "app.py")
+            with open(target, "w", encoding="utf-8") as out:
+                out.write("x = 1\n")
+            with patch(
+                "vulguard.cli.inspect_file",
+                new=AsyncMock(return_value=mock_result),
+            ):
+                result = runner.invoke(
+                    inspect_command, [tmp, "--severities", "CRITICAL"]
+                )
+        assert result.exit_code == 0
+
+    def test_cli_severities_filter_exit_one_when_included(self) -> None:
+        """inspect_command exits 1 when the matched severity is in --severities."""
+        mock_result = {
+            "file": "/some/file.py",
+            "severity": "CRITICAL",
+            "details": "SQL injection.",
+        }
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, "app.py")
+            with open(target, "w", encoding="utf-8") as out:
+                out.write("x = 1\n")
+            with patch(
+                "vulguard.cli.inspect_file",
+                new=AsyncMock(return_value=mock_result),
+            ):
+                result = runner.invoke(
+                    inspect_command, [tmp, "--severities", "CRITICAL,MAJOR"]
+                )
+        assert result.exit_code == 1
+
+    def test_cli_invalid_severity_exits_nonzero(self) -> None:
+        """inspect_command exits with a non-zero code on an invalid --severities value."""
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as tmp:
+            result = runner.invoke(inspect_command, [tmp, "--severities", "UNKNOWN"])
+        assert result.exit_code != 0
 
 
 class TestMainGroup:

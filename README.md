@@ -1,6 +1,6 @@
 # Vulguard
 
-[![Version](https://img.shields.io/badge/version-1.1.2-blue.svg)](CHANGELOG.md) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 
 > A lightweight CLI security tool that automatically scans source code for vulnerabilities, highlights risky patterns, and guides developers toward safer implementations to strengthen their applications' overall security posture.
@@ -36,6 +36,7 @@ vulguard inspect [OPTIONS] PATHS...
 | `--report TEXT` | `vulguard-report` | Base filename for the report (no extension appended). |
 | `--format [json\|html]` | `json` | Report format. Selecting `html` also produces a JSON file. |
 | `--db-dir PATH` | `~/.vulguard` | Directory for the SQLite session database. |
+| `--severities TEXT` | `CRITICAL,MAJOR,MINOR` | Comma-separated severity levels that trigger exit code `1`. The report always shows all findings. |
 
 #### Examples
 
@@ -48,16 +49,19 @@ vulguard inspect src/ tests/ --ext py,js --format html --output-dir reports
 
 # Use a custom report name and database directory
 vulguard inspect src/ --report my-scan --db-dir /tmp/vg-db
+
+# Fail CI only on CRITICAL or MAJOR findings; MINOR is still reported
+vulguard inspect src/ --severities CRITICAL,MAJOR
 ```
 
 ### Exit Codes
 
 | Code | Meaning |
 |---|---|
-| `0` | Inspection completed — no vulnerabilities found. |
-| `1` | Inspection completed — one or more vulnerabilities detected. |
+| `0` | Inspection completed — no vulnerabilities at or above the selected severity threshold. |
+| `1` | Inspection completed — one or more findings match the `--severities` filter. |
 
-This makes it straightforward to fail a CI pipeline step when security issues are present.
+By default all non-`NONE` severities (`CRITICAL`, `MAJOR`, `MINOR`) trigger exit code `1`. Use `--severities` to restrict which levels count, for example to only fail a CI step on `CRITICAL` or `MAJOR` findings while still having `MINOR` issues appear in the report.
 
 ## Severity Levels
 
