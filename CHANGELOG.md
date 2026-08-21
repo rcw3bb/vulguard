@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0 - 2026-08-21
+
+### Added
+
+- `--severities` option on the `inspect` subcommand to specify which severity levels trigger a non-zero exit code (e.g. `--severities CRITICAL,MAJOR`). Accepts a comma-separated list of `CRITICAL`, `MAJOR`, and `MINOR`. The report always shows all detected vulnerabilities; only the exit code determination is affected. Defaults to `CRITICAL,MAJOR,MINOR` for full backward compatibility.
+
 ## 1.1.2 - 2026-06-20
 
 ### Fixed

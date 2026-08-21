@@ -77,6 +77,27 @@ def _collect_files(paths: tuple[str, ...], extensions: list[str]) -> list[str]:
     return sorted(collected)
 
 
+_VALID_SEVERITIES: frozenset[str] = frozenset({"CRITICAL", "MAJOR", "MINOR"})
+
+
+def _parse_severities(value: str) -> frozenset[str]:
+    """Parses and validates a comma-separated severity filter string.
+
+    :param value: Comma-separated severity names (case-insensitive).
+    :return: Frozenset of normalised uppercase severity strings.
+    :raises click.BadParameter: When an unrecognised severity name is supplied.
+    """
+    tokens = {token.strip().upper() for token in value.split(",") if token.strip()}
+    invalid = tokens - _VALID_SEVERITIES
+    if invalid:
+        raise click.BadParameter(
+            f"Invalid severity(ies): {', '.join(sorted(invalid))}. "
+            f"Allowed values: {', '.join(sorted(_VALID_SEVERITIES))}.",
+            param_hint="'--severities'",
+        )
+    return frozenset(tokens)
+
+
 async def _inspect_and_persist(
     file_path: str,
     system_prompt: str,
@@ -197,6 +218,7 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     report_base: str,
     fmt: str,
     db_dir: str | None = None,
+    severities: frozenset[str] = _VALID_SEVERITIES,
 ) -> int:
     """Orchestrates file collection, Copilot inspection, and report writing.
 
@@ -210,7 +232,9 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     :param fmt: Report format — ``'json'`` or ``'html'``.
     :param db_dir: Optional directory that overrides the default database
                    location (``~/.vulguard``).
-    :return: Number of vulnerabilities found.
+    :param severities: Frozenset of severity levels that contribute to the
+                       non-zero exit code.  Defaults to all non-NONE levels.
+    :return: Number of vulnerabilities whose severity is in ``severities``.
     """
     _logger.info("Starting vulguard inspection — paths: %s, fmt: %s", paths, fmt)
     system_prompt = load_system_prompt()
@@ -233,7 +257,7 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     report = build_report(
         results, __version__, list(paths), config.get_model(), extensions
     )
-    vuln_count = sum(1 for r in results if r.get("severity") != "NONE")
+    vuln_count = sum(1 for r in results if r.get("severity") in severities)
 
     _write_reports(report, output_dir, report_base, fmt)
 
@@ -283,6 +307,15 @@ async def _run_inspection(  # pylint: disable=too-many-arguments,too-many-positi
     type=click.Path(),
     help="Directory for the vulguard SQLite database. Defaults to ~/.vulguard.",
 )
+@click.option(
+    "--severities",
+    default="CRITICAL,MAJOR,MINOR",
+    show_default=True,
+    help=(
+        "Comma-separated severity levels that trigger a non-zero exit code "
+        "(e.g. CRITICAL,MAJOR). The report always shows all findings."
+    ),
+)
 def inspect_command(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     paths: tuple[str, ...],
     ext: str | None,
@@ -290,6 +323,7 @@ def inspect_command(  # pylint: disable=too-many-arguments,too-many-positional-a
     report: str,
     fmt: str,
     db_dir: str | None,
+    severities: str,
 ) -> None:
     """Inspect source files or directories for security vulnerabilities.
 
@@ -299,10 +333,12 @@ def inspect_command(  # pylint: disable=too-many-arguments,too-many-positional-a
     """
     extensions: list[str] = [e.strip().lower() for e in ext.split(",")] if ext else []
     effective_output_dir = output_dir or str(Path.cwd() / "reports")
+    severities_set = _parse_severities(severities)
     try:
         vuln_count = asyncio.run(
             _run_inspection(
-                paths, extensions, effective_output_dir, report, fmt, db_dir
+                paths, extensions, effective_output_dir, report, fmt, db_dir,
+                severities_set,
             )
         )
         if vuln_count > 0:
